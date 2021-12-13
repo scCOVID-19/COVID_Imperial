@@ -129,7 +129,7 @@ dmypy.json
 .pyre/
 
 # other
-.DStore
+.DS_Store
 .ipynb_checkpoints/
 .RData
 .Rhistory
