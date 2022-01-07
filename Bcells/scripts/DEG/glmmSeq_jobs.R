@@ -81,4 +81,4 @@ results4 <- glmmSeq(~ WHO_severity + sex + ethnicity + calc_age + days_to_admiss
                   removeSingles=FALSE,
                   progress=TRUE,
                   cores = opt$NCPU)
-saveRDS(results1, results2, results3, results4, file = opt$OUT)
+save(results1, results2, results3, results4, file = opt$OUT)
