@@ -103,13 +103,13 @@ y6 <- setupDGElist(y, 'WHO_temp_severity_group', remove = "NA")
 y7 <- setupDGElist(y, 'days_to_sampling') # days from first symptoms
 
 # run glmmseq
-res1 <- testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU)
-res2 <- testDGElist(y2, 'case_control', ncores = opt$NCPU)
-res3 <- testDGElist(y3, 'case_control', ncores = opt$NCPU)
-res4 <- testDGElist(y4, 'case_control', ncores = opt$NCPU)
-res5 <- testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU)
-res6 <- testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU)
-res7 <- testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU)
+res1 <- tryCatch(testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res2 <- tryCatch(testDGElist(y2, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res3 <- tryCatch(testDGElist(y3, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res4 <- tryCatch(testDGElist(y4, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res5 <- tryCatch(testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res6 <- tryCatch(testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU), error = function(e) return(NA))
+res7 <- tryCatch(testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU), error = function(e) return(NA))
 
 OUT = paste0(dirname(opt$IN), '/', gsub('.RDS', '_glmmSeq_results.RData', basename(opt$IN)))
 save(res1, res1, res2, res3, res4, res5, res6, res7, file = OUT)
@@ -135,13 +135,13 @@ y6 <- setupDGElist(y, 'WHO_temp_severity_group', remove = "NA")
 y7 <- setupDGElist(y, 'days_to_sampling') # days from first symptoms
 
 # run glmmseq
-res1 <- testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU)
-res2 <- testDGElist(y2, 'case_control', ncores = opt$NCPU)
-res3 <- testDGElist(y3, 'case_control', ncores = opt$NCPU)
-res4 <- testDGElist(y4, 'case_control', ncores = opt$NCPU)
-res5 <- testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU)
-res6 <- testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU)
-res7 <- testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU)
+res1 <- tryCatch(testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res2 <- tryCatch(testDGElist(y2, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res3 <- tryCatch(testDGElist(y3, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res4 <- tryCatch(testDGElist(y4, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res5 <- tryCatch(testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res6 <- tryCatch(testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU), error = function(e) return(NA))
+res7 <- tryCatch(testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU), error = function(e) return(NA))
 
 OUT = paste0(dirname(opt$IN), '/', gsub('.RDS', '_glmmSeq_results_wave1and2.RData', basename(opt$IN)))
 save(res1, res2, res3, res4, res5, res6, res7, file = OUT)
@@ -166,13 +166,13 @@ y6 <- setupDGElist(y, 'WHO_temp_severity_group', remove = "NA")
 y7 <- setupDGElist(y, 'days_to_sampling') # days from first symptoms
 
 # run glmmseq
-res1 <- testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU)
-res2 <- testDGElist(y2, 'case_control', ncores = opt$NCPU)
-res3 <- testDGElist(y3, 'case_control', ncores = opt$NCPU)
-res4 <- testDGElist(y4, 'case_control', ncores = opt$NCPU)
-res5 <- testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU)
-res6 <- testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU)
-res7 <- testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU)
+res1 <- tryCatch(testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res2 <- tryCatch(testDGElist(y2, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res3 <- tryCatch(testDGElist(y3, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res4 <- tryCatch(testDGElist(y4, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res5 <- tryCatch(testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res6 <- tryCatch(testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU), error = function(e) return(NA))
+res7 <- tryCatch(testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU), error = function(e) return(NA))
 
 OUT = paste0(dirname(opt$IN), '/', gsub('.RDS', '_glmmSeq_results_wave1.RData', basename(opt$IN)))
 save(res1, res2, res3, res4, res5, res6, res7, file = OUT)
@@ -197,13 +197,13 @@ y6 <- setupDGElist(y, 'WHO_temp_severity_group', remove = "NA")
 y7 <- setupDGElist(y, 'days_to_sampling') # days from first symptoms
 
 # run glmmseq
-res1 <- testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU)
-res2 <- testDGElist(y2, 'case_control', ncores = opt$NCPU)
-res3 <- testDGElist(y3, 'case_control', ncores = opt$NCPU)
-res4 <- testDGElist(y4, 'case_control', ncores = opt$NCPU)
-res5 <- testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU)
-res6 <- testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU)
-res7 <- testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU)
+res1 <- tryCatch(testDGElist(y1, 'case_control', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res2 <- tryCatch(testDGElist(y2, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res3 <- tryCatch(testDGElist(y3, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res4 <- tryCatch(testDGElist(y4, 'case_control', ncores = opt$NCPU), error = function(e) return(NA))
+res5 <- tryCatch(testDGElist(y5, 'WHO_temp_severity', ordered = TRUE, ncores = opt$NCPU), error = function(e) return(NA))
+res6 <- tryCatch(testDGElist(y6, 'WHO_temp_severity_group', ncores = opt$NCPU), error = function(e) return(NA))
+res7 <- tryCatch(testDGElist(y7, 'days_to_sampling', ncores = opt$NCPU), error = function(e) return(NA))
 
 OUT = paste0(dirname(opt$IN), '/', gsub('.RDS', '_glmmSeq_results_wave2.RData', basename(opt$IN)))
 save(res1, res2, res3, res4, res5, res6, res7, file = OUT)
