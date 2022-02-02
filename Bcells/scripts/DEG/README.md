@@ -19,7 +19,7 @@ The current script will run the following tests in a LMM model, accounting for a
 2. case vs control (POSITIVE - NEGATIVE)
 3. case vs control (RECOVERY - NEGATIVE)
 4. case vs control (POSITIVE - NEGATIVE)
-5. WHO temp severity (mild > moderate severe > critical)
+5. WHO temp severity (mild > moderate > severe > critical)
 6. WHO temp severity group ((severe and critical) - (mild and moderate))
 7. Date of sampling - date of first symptoms (Days from first symptoms)
 
