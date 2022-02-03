@@ -116,7 +116,7 @@ save(res1, res1, res2, res3, res4, res5, res6, res7, file = OUT)
 
 ##### wave 1 + wave 2 specific comparison
 # duplicate sce to subset to only patients that were negative in wave1 but positive in wave2
-sce2 <- sce[, sce$individual_id %in% c('C101', 'C108', 'C137', 'C138', 'C140', 'C141', 'C145', 'C146', 'C147', 'C168', 'C169', 'C170', 'C187', 'C190', 'C33',)]
+sce2 <- sce[, sce$individual_id %in% c('C101', 'C108', 'C137', 'C138', 'C140', 'C141', 'C145', 'C146', 'C147', 'C168', 'C169', 'C170', 'C187', 'C190', 'C33')]
 # Remove samples with less than MIN
 nCells2 <- table(sce2$sample_id)
 rmSamples2 <- names(nCells2[nCells2<opt$MIN])
