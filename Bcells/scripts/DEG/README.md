@@ -61,12 +61,13 @@ The current script will run the following tests in a LMM model, accounting for a
        **monoyte-platelet interaction - cellphonedb over time
 
 # Fig 4
-# wave 2 neg vs recovery - are patients back to baseline per celltype
-specific samples from patients who were negative in wave 1 but positive in wave 2 
-       case vs control (RECOVERY - NEGATIVE)
-       case vs control (POSITIVE - NEGATIVE)
+## wave 2 neg vs recovery - are patients back to baseline per celltype
+       specific samples from patients who were negative in wave 1 but positive in wave 2 
+              case vs control (RECOVERY - NEGATIVE)
+              case vs control (POSITIVE - NEGATIVE)
        
 # Fig 5
-versus Stephenson et al
-renal disease specific things?
-integrative analysis - cytokine/secreted molecules
+## integrative analysis
+       versus Stephenson et al
+       renal disease specific things?
+       integrative analysis - cytokine/secreted molecules
