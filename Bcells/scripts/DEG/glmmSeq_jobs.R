@@ -270,7 +270,7 @@ res2 <- try(glmm_modified(y,
                          id = "individual_id",
                          cores = opt$NCPU), silent = TRUE)
 res2 <- glmm_qval(res2, pi0 = 1)
-results2 <- cbind(res2$stats, res2$optInfo)
+result2 <- cbind(res2$stats, res2$optInfo)
 
 # Comparison 3: just wave 1, deg from positive vs negative
 sce2 <- sce[, sce$centre == 'NCL']
@@ -299,7 +299,7 @@ if (class(res3) != "try-error"){
     result3 <- cbind(result3, res3@optInfo)
 } else {
     res3 <- NA
-    results3 <- NA
+    result3 <- NA
 }
 
 # Comparison 4: just patients that were negative in wave 1 but positive in wave 2, deg from recovery vs negative
@@ -336,7 +336,7 @@ if (class(res4) != "try-error"){
     result4 <- cbind(result4, res4@optInfo)
 } else {
     res4 <- NA
-    results4 <- NA
+    result4 <- NA
 }
 
 # Comparison 5: just patients that were negative in wave 1 but positive in wave 2, deg from positive vs negative
@@ -365,14 +365,14 @@ if (class(res5) != "try-error"){
     result5 <- cbind(result5, res5@optInfo)
 } else {
     res5 <- NA
-    results5 <- NA
+    result5 <- NA
 }
 
-results <- list(`ordered WHO temp severity` = list(degresults = results1, full = res1), 
-                `interaction between WHO temp severity groups and time` = list(degresults = results2, full = res2),
-                `wave 1 positive vs negative` = list(degresults = results3, full = res3),
-                `wave 2 recovery vs negative` = list(degresults = results4, full = res4),
-                `wave 2 positive vs negative` = list(degresults = results5, full = res5)
+results <- list(`ordered WHO temp severity` = list(degresults = result1, full = res1), 
+                `interaction between WHO temp severity groups and time` = list(degresults = result2, full = res2),
+                `wave 1 positive vs negative` = list(degresults = result3, full = res3),
+                `wave 2 recovery vs negative` = list(degresults = result4, full = res4),
+                `wave 2 positive vs negative` = list(degresults = result5, full = res5)
                 )
 
 OUT = paste0(dirname(opt$IN), "/", gsub(".RDS", "_glmmSeq_DEG_results.RDS", basename(opt$IN)))
