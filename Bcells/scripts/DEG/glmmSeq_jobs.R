@@ -252,11 +252,11 @@ res1 <- try(testDGElist(y,
                     ), silent = TRUE)
 if (class(res1) != "try-error"){
     res1 <- glmmQvals(res1, pi0 = 1)
-    results1 <- res1@stats
-    results1 <- cbind(results1, res1@optInfo)
+    result1 <- res1@stats
+    result1 <- cbind(result1, res1@optInfo)
 } else {
     res1 <- NA
-    results1 <- NA
+    result1 <- NA
 }
 
 # Comparison 2: deg from the interaction between WHO temp severity groups and time
@@ -269,8 +269,13 @@ res2 <- try(glmm_modified(y,
                          modelFormula = as.formula("~ splines::bs(days_to_sampling, degree = 2) * grouped_severity + sex + ethnicity + age_scaled + centre + (1|individual_id)"),
                          id = "individual_id",
                          cores = opt$NCPU), silent = TRUE)
-res2 <- glmm_qval(res2, pi0 = 1)
-result2 <- cbind(res2$stats, res2$optInfo)
+if (class(res2) != "try-error"){
+    res2 <- glmm_qval(res2, pi0 = 1)
+    result2 <- cbind(res2$stats, res2$optInfo)
+} else {
+    res2 <- NA
+    result2 <- NA
+}
 
 # Comparison 3: just wave 1, deg from positive vs negative
 sce2 <- sce[, sce$centre == 'NCL']
