@@ -111,6 +111,31 @@ degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = F
     return(tmp)
 }
 
+degTable_simple <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE){
+    modelData <- results@modelData
+    outLabels <- apply(modelData, 1, function(x) paste(x, collapse="_"))
+    modelData$y <- paste0('y_', outLabels)
+    cols1 = grep(group, modelData$y, value = TRUE)
+    cols2 = grep(group, modelData$y, value = TRUE, invert = TRUE)
+    if (reverse){
+        LFC <- log2(results@predict[, cols2]+1) - log2(results@predict[, cols1]+1)
+    } else {
+        LFC <- log2(results@predict[, cols1]+1) - log2(results@predict[, cols2]+1)
+    }
+    tmp <- data.frame(results@stats[,c(paste0(contrast, group), paste0('P_',contrast), paste0('q_',contrast))], check.names = FALSE)
+    colnames(tmp) <- c('fixed-effects estimates', 'pval', 'qval')
+    tmp$LFC <- LFC
+    tmp <- cbind(tmp, results@optInfo)
+
+    if (remove_issues){
+        tmp <- tmp[which(tmp$Singular == 0 & tmp$Conv == 0),]
+    }
+    
+    tmp <- tmp[order(-tmp$`fixed-effects estimates`, tmp$qval), ]
+
+    return(tmp)
+}
+                           
 glmm_modified <- function(dgeList,
                              modelFormula,
                              id,
