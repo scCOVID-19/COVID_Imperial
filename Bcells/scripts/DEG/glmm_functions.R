@@ -1,3 +1,4 @@
+options(warn = -1)
 suppressPackageStartupMessages(library(SingleCellExperiment))
 suppressPackageStartupMessages(library(SummarizedExperiment))
 suppressPackageStartupMessages(library(variancePartition))
@@ -7,9 +8,10 @@ suppressPackageStartupMessages(library(scran))
 suppressPackageStartupMessages(library(scater))
 suppressPackageStartupMessages(library(glmmSeq))
 suppressPackageStartupMessages(library(lmerTest))
-suppressPackageStartupMessages(library(pbmcapply))
+suppressPackageStartupMessages(library(BiocParallel))
 
-setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dropLevels = c('individual_id', 'sample_id', 'case_control', 'ethnicity', 'sex')) {
+setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dropLevels = c("individual_id",
+    "sample_id", "case_control", "ethnicity", "sex")) {
     if (!is.null(remove)) {
         dgelist <- dgelist[, !dgelist$samples[, comparison] %in% remove]
     }
@@ -33,15 +35,16 @@ setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dr
             dgelist$samples[, comparison] <- droplevels(dgelist$samples[, comparison])
         }
     }
-    if (!is.null(dropLevels)){
-        for (dL in dropLevels){
+    if (!is.null(dropLevels)) {
+        for (dL in dropLevels) {
             dgelist$samples[, dL] <- droplevels(dgelist$samples[, dL])
         }
     }
     return(dgelist)
 }
 
-testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optimizer = 'bobyqa', designMatrix = NULL, ncores = NULL, ...) {
+testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optimizer = "bobyqa",
+    designMatrix = NULL, ncores = NULL, BPPARAM = SerialParam(progress = TRUE), ...) {
     if (is.null(ncores)) {
         NCORES <- parallel::detectCores() - 1
     } else {
@@ -50,14 +53,18 @@ testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optim
     # Estimate Dispersion
     disp <- suppressMessages(setNames(edgeR::estimateDisp(dgelist)$tagwise.dispersion,
         rownames(dgelist)))
+    
     # Norm
-    sizeFactors <- calcNormFactors(dgelist$counts)
+    dgelist <- calcNormFactors(dgelist)
+    
+    sizeFactors <- dgelist$samples$lib.size * dgelist$samples$norm.factors
+    
     if (modified){
-        results <- glmm_modified(dgelist, 
+        results <- suppressMessages(glmm_modified(dgelist, 
                               modelFormula = formula,
                               id = individual_id,
                               control = glmerControl(optimizer = optimizer, optCtrl = list(maxfun = 2e+05)),
-                              cores = ncores, ...)
+                              BPPARAM = BPPARAM, ...))
         results <- glmm_qval(results, pi0 = 1)
     } else {
         results <- glmmSeq(formula, 
@@ -67,9 +74,9 @@ testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optim
                        dispersion = disp,
                        sizeFactors = sizeFactors,
                        removeDuplicatedMeasures = FALSE,
-                       designMatrix = designMatrix,
+                       # designMatrix = designMatrix,
                        removeSingles = FALSE,
-                       control = glmerControl(optimizer = optimizer, ...),
+                       control = glmerControl(optimizer = optimizer, optCtrl = list(maxfun = 2e+05), check.conv.singular = "ignore"),
                        progress = TRUE,
                        cores = NCORES)
         results <- glmmQvals(results, pi0=1)
@@ -78,76 +85,86 @@ testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optim
 }
 
 
-degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE, modified = FALSE){
-    if (modified){
-        contrasts <- paste0(c(gsub('):', ')1:', contrast), gsub('):', ')2:', contrast)), group)
-        tmp <- data.frame(results$stats[,c(contrasts, paste0('P_',contrast), paste0('q_',contrast))], check.names = FALSE)
-        colnames(tmp) <- c('fixed-effects estimates_linear', 'fixed-effects estimates_quadratic', 'pval', 'qval')
+degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE,
+    modified = FALSE) {
+    if (modified) {
+        contrasts <- paste0(c(gsub("):", ")1:", contrast), gsub("):", ")2:", contrast)),
+            group)
+        tmp <- data.frame(results$stats[, c(contrasts, paste0("P_", contrast), paste0("q_",
+            contrast))], check.names = FALSE)
+        colnames(tmp) <- c("beta_linear", "beta_quadratic",
+            "pval", "qval")
         tmp <- cbind(tmp, results$optInfo)
     } else {
-        modelData <- results@modelData
-        outLabels <- apply(modelData, 1, function(x) paste(x, collapse="_"))
-        modelData$y <- paste0('y_', outLabels)
-        cols1 = grep(group, modelData$y, value = TRUE)
-        cols2 = grep(group, modelData$y, value = TRUE, invert = TRUE)
-        if (reverse){
-            LFC <- log2(rowMeans(results@predict[, cols2])+1) - log2(rowMeans(results@predict[, cols1])+1)
-        } else {
-            LFC <- log2(rowMeans(results@predict[, cols1])+1) - log2(rowMeans(results@predict[, cols2])+1)
-        }
-        tmp <- data.frame(results@stats[,c(paste0(contrast, group), paste0('P_',contrast), paste0('q_',contrast))], check.names = FALSE)
-        colnames(tmp) <- c('fixed-effects estimates', 'pval', 'qval')
-        tmp$LFC <- LFC
+        tmp <- data.frame(results@stats[, c(paste0(contrast, group), paste0("P_",
+            contrast), paste0("q_", contrast))], check.names = FALSE)
+        colnames(tmp) <- c(beta, "pval", "qval")
+        # tmp$LFC <- LFC
         tmp <- cbind(tmp, results@optInfo)
     }
-    if (remove_issues){
-        tmp <- tmp[which(tmp$Singular == 0 & tmp$Conv == 0),]
+    if (remove_issues) {
+        tmp <- tmp[which(tmp$Conv == 0), ]
     }
-    if (modified){
-        tmp <- tmp[order(-tmp$`fixed-effects estimates_quadratic`, tmp$qval), ]
+    if (modified) {
+        tmp <- tmp[order(-tmp$beta_quadratic, tmp$qval), ]
     } else {
-        tmp <- tmp[order(-tmp$`fixed-effects estimates`, tmp$qval), ]
+        tmp <- tmp[order(-tmp$beta, tmp$qval), ]
     }
     return(tmp)
 }
 
-degTable_simple <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE){
+degTable_modified <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE) {
+    tmp <- data.frame(results$stats[, c(paste0(contrast, group), paste0("P_", contrast),
+        paste0("q_", contrast))], check.names = FALSE)
+    colnames(tmp) <- c("beta", "pval", "qval")
+    # tmp$LFC <- LFC
+    tmp <- cbind(tmp, results$optInfo)
+    if (remove_issues) {
+        tmp <- tmp[which(tmp$Conv == 0), ]
+    }
+    tmp <- tmp[order(-tmp$beta, tmp$qval), ]
+    return(tmp)
+}
+
+degTable_simple <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE) {
     modelData <- results@modelData
-    outLabels <- apply(modelData, 1, function(x) paste(x, collapse="_"))
-    modelData$y <- paste0('y_', outLabels)
+    outLabels <- apply(modelData, 1, function(x) paste(x, collapse = "_"))
+    modelData$y <- paste0("y_", outLabels)
     cols1 = grep(group, modelData$y, value = TRUE)
     cols2 = grep(group, modelData$y, value = TRUE, invert = TRUE)
-    if (reverse){
-        LFC <- log2(results@predict[, cols2]+1) - log2(results@predict[, cols1]+1)
+    if (reverse) {
+        LFC <- log2(results@predict[, cols2] + 1) - log2(results@predict[, cols1] +
+            1)
     } else {
-        LFC <- log2(results@predict[, cols1]+1) - log2(results@predict[, cols2]+1)
+        LFC <- log2(results@predict[, cols1] + 1) - log2(results@predict[, cols2] +
+            1)
     }
-    tmp <- data.frame(results@stats[,c(paste0(contrast, group), paste0('P_',contrast), paste0('q_',contrast))], check.names = FALSE)
-    colnames(tmp) <- c('fixed-effects estimates', 'pval', 'qval')
+    tmp <- data.frame(results@stats[, c(paste0(contrast, group), paste0("P_", contrast),
+        paste0("q_", contrast))], check.names = FALSE)
+    colnames(tmp) <- c("beta", "pval", "qval")
     tmp$LFC <- LFC
     tmp <- cbind(tmp, results@optInfo)
 
-    if (remove_issues){
-        tmp <- tmp[which(tmp$Singular == 0 & tmp$Conv == 0),]
+    if (remove_issues) {
+        tmp <- tmp[which(tmp$Singular == 0 & tmp$Conv == 0), ]
     }
-    
-    tmp <- tmp[order(-tmp$`fixed-effects estimates`, tmp$qval), ]
+
+    tmp <- tmp[order(-tmp$beta, tmp$qval), ]
 
     return(tmp)
 }
                            
-glmm_modified <- function(dgeList,
-                             modelFormula,
-                             id,
-                             control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e+05)),
-                             cores = 1,
-                             verbose = TRUE,
-                             ...) {
+glmm_modified <- function(dgeList, modelFormula, id, control = glmerControl(optimizer = "bobyqa",
+    optCtrl = list(maxfun = 2e+05)), BPPARAM = SerialParam(progress = TRUE), verbose = TRUE,
+    ...) {
     metadata <- dgeList$samples
     countdata <- dgeList$counts
     dispersion <- suppressMessages(setNames(edgeR::estimateDisp(dgeList)$tagwise.dispersion,
         rownames(dgeList)))
-    sizeFactors <- calcNormFactors(dgeList$counts)
+    # Norm
+    dgeList <- calcNormFactors(dgeList)
+
+    sizeFactors <- dgeList$samples$lib.size * dgeList$samples$norm.factors
 
     ids <- as.character(metadata[, id])
     # Manipulate formulae
@@ -170,13 +187,10 @@ glmm_modified <- function(dgeList,
         list(y = countdata[i, ], dispersion = dispersion[i])
     })
 
-    resultList <- pbmclapply(fullList, function(geneList) {
-        try(run_glmm(data = metadata, 
-                     geneList = geneList, 
-                     fullFormula = fullFormula,
-                     control = control,
-                     offset = offset, ...), silent = TRUE)
-    }, mc.cores = cores)
+    resultList <- bplapply(fullList, function(geneList) {
+        try(run_glmm(data = metadata, geneList = geneList, fullFormula = fullFormula,
+            control = control, offset = offset, ...), silent = TRUE)
+    }, BPPARAM = BPPARAM)
 
     # Print timing if verbose
     end <- Sys.time()
@@ -187,59 +201,63 @@ glmm_modified <- function(dgeList,
     names(resultList) <- rownames(countdata)
 
     # any failed?
-    if (any(lapply(resultList, length) < 4)){
+    if (any(lapply(resultList, length) < 4)) {
         failed <- names(which(lapply(resultList, length) < 4))
         errormsg <- lapply(resultList[failed], function(x) x[1])
         resultList <- resultList[-which(lapply(resultList, length) < 4)]
     }
-    
+
     noErr <- vapply(resultList, function(x) x$tryErrors == "", FUN.VALUE = TRUE)
-    if (length(which(noErr)) == 0) { 
+    if (length(which(noErr)) == 0) {
         stop("All genes returned an error. Check sufficient data in each group")
     }
     if (sum(!noErr) != 0) {
         if (verbose) {
-            if (length(failed) > 0){
-                cat(paste0("Errors in ", sum(!noErr, length(failed)), " gene(s):", paste0(c(names(noErr)[! noErr], failed), collapse = ", ")))
+            if (length(failed) > 0) {
+                cat(paste0("Errors in ", sum(!noErr, length(failed)), " gene(s):",
+                  paste0(c(names(noErr)[!noErr], failed), collapse = ", ")))
             } else {
-                cat(paste0("Errors in ", sum(!noErr), " gene(s):", paste0(names(noErr)[! noErr], collapse = ", ")))
+                cat(paste0("Errors in ", sum(!noErr), " gene(s):", paste0(names(noErr)[!noErr],
+                  collapse = ", ")))
             }
         }
-        outputErrors <- vapply(resultList[!noErr], function(x) {x$tryErrors}, FUN.VALUE = c("test"))
-        if (length(failed > 0)){
+        outputErrors <- vapply(resultList[!noErr], function(x) {
+            x$tryErrors
+        }, FUN.VALUE = c("test"))
+        if (length(failed > 0)) {
             outputErrors <- c(outputErrors, errormsg)
         }
     } else {
-            outputErrors <- c("No errors")
+        outputErrors <- c("No errors")
     }
     optInfo <- t(vapply(resultList[noErr], function(x) {
         setNames(x$optinfo, c("Singular", "Conv"))
     }, FUN.VALUE = c(1, 1)))
-  
+
     nCheat <- resultList[noErr][[1]]$stats
-    s <- t(vapply(resultList[noErr], function(x) {x$stats},
-                  FUN.VALUE = rep(1, length(nCheat))))
-  
-        return(list(stats = s, fit = resultList, optInfo = optInfo, errors = outputErrors))
-    }
+    s <- t(vapply(resultList[noErr], function(x) {
+        x$stats
+    }, FUN.VALUE = rep(1, length(nCheat))))
+
+    return(list(stats = s, fit = resultList, optInfo = optInfo, errors = outputErrors))
+}
 
 run_glmm <- function(data, geneList, fullFormula, control, offset, ...) {
     data[, "count"] <- as.numeric(geneList$y)
     fit <- lme4::glmer(fullFormula, data = data, control = control, offset = offset,
         family = MASS::negative.binomial(theta = 1/geneList$dispersion), ...)
     if (class(fit) != "try-error") {
-        stats <- setNames(c(geneList$dispersion, AIC(fit),
-                        as.numeric(logLik(fit))),
-                      c("Dispersion", "AIC", "logLik"))
+        stats <- setNames(c(geneList$dispersion, AIC(fit), as.numeric(logLik(fit))),
+            c("Dispersion", "AIC", "logLik"))
         fixedEffects <- lme4::fixef(fit)
         wald <- try(car::Anova(fit), silent = TRUE)
         if (class(wald) != "try-error") {
-            waldtest <- setNames(c(wald[, "Chisq"], wald[, "Pr(>Chisq)"]),
-                 c(paste0("Chisq_", rownames(wald)),
-                    paste0("P_", rownames(wald))))
+            waldtest <- setNames(c(wald[, "Chisq"], wald[, "Pr(>Chisq)"]), c(paste0("Chisq_",
+                rownames(wald)), paste0("P_", rownames(wald))))
             singular <- as.numeric(isSingular(fit))
             conv <- length(slot(fit, "optinfo")$conv$lme4$messages)
-            return(list(stats = c(stats, fixedEffects, waldtest), fit = fit, optinfo = c(singular, conv), tryErrors = ""))
+            return(list(stats = c(stats, fixedEffects, waldtest), fit = fit, optinfo = c(singular,
+                conv), tryErrors = ""))
         } else {
             return(list(stats = NA, fit = NA, optinfo = NA, tryErrors = wald[1]))
         }
@@ -248,15 +266,13 @@ run_glmm <- function(data, geneList, fullFormula, control, offset, ...) {
     }
 }
 
-glmm_qval <- function(result,
-                      cutoff = 0.05,
-                      pi0 = NULL,
-                      verbose = TRUE) {
+glmm_qval <- function(result, cutoff = 0.05, pi0 = NULL, verbose = TRUE) {
     resultStats <- data.frame(result$stats, check.names = FALSE)
     for (cn in colnames(resultStats)[grep("P_", colnames(resultStats))]) {
         q_cn <- gsub("P_", "q_", cn)
         resultStats[, q_cn] <- NA
-        resultStats[!is.na(resultStats[, cn]), q_cn] <- qvalue::qvalue(resultStats[!is.na(resultStats[, cn]), cn], pi0 = pi0)$qvalues
+        resultStats[!is.na(resultStats[, cn]), q_cn] <- qvalue::qvalue(resultStats[!is.na(resultStats[,
+            cn]), cn], pi0 = pi0)$qvalues
         if (verbose) {
             cat(paste0("\n", q_cn, "\n"))
             cat(paste(rep("-", nchar(q_cn)), collapse = ""))
