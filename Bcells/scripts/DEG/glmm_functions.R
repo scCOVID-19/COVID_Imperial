@@ -151,7 +151,6 @@ glmm_modified <- function(dgeList, modelFormula, id, dispersion, sizeFactors = N
     BPPARAM = SerialParam(progress = TRUE), verbose = TRUE, ...) {
     metadata <- dgeList$samples
     countdata <- dgeList$counts
-    # Norm
     ids <- as.character(metadata[, id])
     # Manipulate formulae
     reducedFormula <- nobars(modelFormula)
