@@ -23,7 +23,6 @@ setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dr
             min.total.count = 5)
     }
     dgelist <- dgelist[keep, ]
-
     # ensure the factor levels are correct
     if (is.factor(dgelist$samples[, comparison])) {
         dgelist$samples[, comparison] <- droplevels(dgelist$samples[, comparison])
@@ -44,46 +43,43 @@ setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dr
 }
 
 testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optimizer = "bobyqa",
-    designMatrix = NULL, ncores = NULL, BPPARAM = SerialParam(progress = TRUE), ...) {
+    designMatrix = NULL, ncores = NULL, BPPARAM = SerialParam(progress = TRUE), tpm = FALSE,
+    ...) {
     if (is.null(ncores)) {
         NCORES <- parallel::detectCores() - 1
     } else {
         NCORES <- ncores
     }
-    # Estimate Dispersion
-    disp <- suppressMessages(setNames(edgeR::estimateDisp(dgelist)$tagwise.dispersion,
-        rownames(dgelist)))
-    
-    # Norm
-    dgelist <- calcNormFactors(dgelist)
-    
-    sizeFactors <- dgelist$samples$lib.size * dgelist$samples$norm.factors
-    
-    if (modified){
-        results <- suppressMessages(glmm_modified(dgelist, 
-                              modelFormula = formula,
-                              id = individual_id,
-                              control = glmerControl(optimizer = optimizer, optCtrl = list(maxfun = 2e+05)),
-                              BPPARAM = BPPARAM, ...))
+    if (tpm) {
+        if (modified) {
+            stop("tpm=TRUE only can be run in modified=FALSE mode.")
+        }
+        disp <- suppressMessages(setNames(edgeR::estimateDisp(dgelist)$tagwise.dispersion,
+            rownames(dgelist)))  # Estimate Dispersion
+        dgelist <- calcNormFactors(dgelist)  # just to get the norm.factors
+        sizeFactors <- dgelist$samples$norm.factors
+    } else {
+        # Norm
+        dgelist <- calcNormFactors(dgelist)
+        sizeFactors <- dgelist$samples$lib.size * dgelist$samples$norm.factors
+        disp <- suppressMessages(setNames(edgeR::estimateDisp(dgelist)$tagwise.dispersion,
+            rownames(dgelist)))  # Estimate Dispersion
+    }
+    if (modified) {
+        results <- suppressMessages(glmm_modified(dgelist, modelFormula = formula,
+            dispersion = disp, sizeFactors = sizeFactors, id = individual_id, control = glmerControl(optimizer = optimizer,
+                optCtrl = list(maxfun = 2e+05)), BPPARAM = BPPARAM, ...))
         results <- glmm_qval(results, pi0 = 1)
     } else {
-        results <- glmmSeq(formula, 
-                       id = individual_id, 
-                       countdata = dgelist$counts, 
-                       metadata = dgelist$samples,
-                       dispersion = disp,
-                       sizeFactors = sizeFactors,
-                       removeDuplicatedMeasures = FALSE,
-                       # designMatrix = designMatrix,
-                       removeSingles = FALSE,
-                       control = glmerControl(optimizer = optimizer, optCtrl = list(maxfun = 2e+05), check.conv.singular = "ignore"),
-                       progress = TRUE,
-                       cores = NCORES)
-        results <- glmmQvals(results, pi0=1)
+        results <- glmmSeq(formula, id = individual_id, countdata = dgelist$counts,
+            metadata = dgelist$samples, dispersion = disp, sizeFactors = sizeFactors,
+            removeDuplicatedMeasures = FALSE, removeSingles = FALSE, control = glmerControl(optimizer = optimizer,
+                optCtrl = list(maxfun = 2e+05), check.conv.singular = "ignore"),
+            progress = TRUE, cores = NCORES)
+        results <- glmmQvals(results, pi0 = 1)
     }
     return(results)
 }
-
 
 degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE,
     modified = FALSE) {
@@ -92,8 +88,7 @@ degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = F
             group)
         tmp <- data.frame(results$stats[, c(contrasts, paste0("P_", contrast), paste0("q_",
             contrast))], check.names = FALSE)
-        colnames(tmp) <- c("beta_linear", "beta_quadratic",
-            "pval", "qval")
+        colnames(tmp) <- c("beta_linear", "beta_quadratic", "pval", "qval")
         tmp <- cbind(tmp, results$optInfo)
     } else {
         tmp <- data.frame(results@stats[, c(paste0(contrast, group), paste0("P_",
@@ -144,69 +139,51 @@ degTable_simple <- function(results, contrast, group, remove_issues = TRUE, reve
     colnames(tmp) <- c("beta", "pval", "qval")
     tmp$LFC <- LFC
     tmp <- cbind(tmp, results@optInfo)
-
     if (remove_issues) {
-        tmp <- tmp[which(tmp$Singular == 0 & tmp$Conv == 0), ]
+        tmp <- tmp[which(tmp$Conv == 0), ]
     }
-
     tmp <- tmp[order(-tmp$beta, tmp$qval), ]
-
     return(tmp)
 }
                            
-glmm_modified <- function(dgeList, modelFormula, id, control = glmerControl(optimizer = "bobyqa",
-    optCtrl = list(maxfun = 2e+05)), BPPARAM = SerialParam(progress = TRUE), verbose = TRUE,
-    ...) {
+glmm_modified <- function(dgeList, modelFormula, id, dispersion, sizeFactors = NULL,
+    control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 2e+05)),
+    BPPARAM = SerialParam(progress = TRUE), verbose = TRUE, ...) {
     metadata <- dgeList$samples
     countdata <- dgeList$counts
-    dispersion <- suppressMessages(setNames(edgeR::estimateDisp(dgeList)$tagwise.dispersion,
-        rownames(dgeList)))
-    # Norm
-    dgeList <- calcNormFactors(dgeList)
-
-    sizeFactors <- dgeList$samples$lib.size * dgeList$samples$norm.factors
-
     ids <- as.character(metadata[, id])
     # Manipulate formulae
     reducedFormula <- nobars(modelFormula)
     designMatrix <- model.matrix(reducedFormula, data = dgeList$samples)
     fullFormula <- update.formula(modelFormula, count ~ ., simplify = FALSE)
-
     # Check numbers and alignment
     if (!all(rownames(countdata) %in% names(dispersion), nrow(countdata))) {
         stop("Dispersion length must match nrow in countdata")
     }
-
     if (!is.null(sizeFactors))
         offset <- log(sizeFactors) else offset <- NULL
     if (verbose)
         cat(paste0("\nn = ", length(ids), " samples, ", length(unique(ids)), " individuals\n"))
-
     start <- Sys.time()
     fullList <- lapply(rownames(countdata), function(i) {
         list(y = countdata[i, ], dispersion = dispersion[i])
     })
-
     resultList <- bplapply(fullList, function(geneList) {
         try(run_glmm(data = metadata, geneList = geneList, fullFormula = fullFormula,
             control = control, offset = offset, ...), silent = TRUE)
     }, BPPARAM = BPPARAM)
-
     # Print timing if verbose
     end <- Sys.time()
     if (verbose)
         print(end - start)
-
     # Output
     names(resultList) <- rownames(countdata)
-
     # any failed?
     if (any(lapply(resultList, length) < 4)) {
         failed <- names(which(lapply(resultList, length) < 4))
         errormsg <- lapply(resultList[failed], function(x) x[1])
         resultList <- resultList[-which(lapply(resultList, length) < 4)]
     }
-
     noErr <- vapply(resultList, function(x) x$tryErrors == "", FUN.VALUE = TRUE)
     if (length(which(noErr)) == 0) {
         stop("All genes returned an error. Check sufficient data in each group")
@@ -233,12 +210,10 @@ glmm_modified <- function(dgeList, modelFormula, id, control = glmerControl(opti
     optInfo <- t(vapply(resultList[noErr], function(x) {
         setNames(x$optinfo, c("Singular", "Conv"))
     }, FUN.VALUE = c(1, 1)))
-
     nCheat <- resultList[noErr][[1]]$stats
     s <- t(vapply(resultList[noErr], function(x) {
         x$stats
     }, FUN.VALUE = rep(1, length(nCheat))))
-
     return(list(stats = s, fit = resultList, optInfo = optInfo, errors = outputErrors))
 }
 
