@@ -93,7 +93,7 @@ degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = F
     } else {
         tmp <- data.frame(results@stats[, c(paste0(contrast, group), paste0("P_",
             contrast), paste0("q_", contrast))], check.names = FALSE)
-        colnames(tmp) <- c(beta, "pval", "qval")
+        colnames(tmp) <- c("beta", "pval", "qval")
         # tmp$LFC <- LFC
         tmp <- cbind(tmp, results@optInfo)
     }
@@ -110,7 +110,7 @@ degTable <- function(results, contrast, group, remove_issues = TRUE, reverse = F
 
 degTable_modified <- function(results, contrast, group, remove_issues = TRUE, reverse = FALSE) {
     tmp <- data.frame(results$stats[, c(paste0(contrast, group), paste0("P_", contrast),
-        paste0("q_", contrast))], check.names = FALSE)
+        paste0("q_", contrast))], xcheck.names = FALSE)
     colnames(tmp) <- c("beta", "pval", "qval")
     # tmp$LFC <- LFC
     tmp <- cbind(tmp, results$optInfo)
