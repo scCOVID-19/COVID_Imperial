@@ -43,13 +43,14 @@ setupDGElist <- function(dgelist, comparison, ordered = FALSE, remove = NULL, dr
 }
 
 testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optimizer = "bobyqa",
-    designMatrix = NULL, ncores = NULL, BPPARAM = SerialParam(progress = TRUE), tpm = FALSE, ...) {
+    designMatrix = NULL, ncores = NULL, BPPARAM = SerialParam(progress = TRUE), tpm = FALSE,
+    ...) {
     if (is.null(ncores)) {
         NCORES <- parallel::detectCores() - 1
     } else {
         NCORES <- ncores
     }
-        if (tpm) {
+    if (tpm) {
         if (modified) {
             stop("tpm=TRUE only can be run in modified=FALSE mode.")
         }
@@ -64,7 +65,7 @@ testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optim
         disp <- suppressMessages(setNames(edgeR::estimateDisp(dgelist)$tagwise.dispersion,
             rownames(dgelist)))  # Estimate Dispersion
     }
-    if (modified){
+    if (modified) {
         results <- suppressMessages(glmm_modified(dgelist, modelFormula = formula,
             dispersion = disp, sizeFactors = sizeFactors, id = individual_id, control = glmerControl(optimizer = optimizer,
                 optCtrl = list(maxfun = 2e+05)), BPPARAM = BPPARAM, ...))
@@ -75,7 +76,7 @@ testDGElist <- function(dgelist, formula, individual_id, modified = FALSE, optim
             removeDuplicatedMeasures = FALSE, removeSingles = FALSE, control = glmerControl(optimizer = optimizer,
                 optCtrl = list(maxfun = 2e+05), check.conv.singular = "ignore"),
             progress = TRUE, cores = NCORES)
-        results <- glmmQvals(results, pi0=1)
+        results <- glmmQvals(results, pi0 = 1)
     }
     return(results)
 }
